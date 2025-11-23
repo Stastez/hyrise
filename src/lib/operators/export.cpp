@@ -1,11 +1,23 @@
 #include "export.hpp"
 
-#include <boost/algorithm/string.hpp>
-#include "magic_enum.hpp"
+#include <algorithm>
+#include <cctype>
+#include <memory>
+#include <string>
+#include <unordered_map>
 
-#include "hyrise.hpp"
+#include <boost/algorithm/string.hpp>
+
+#include "magic_enum/magic_enum.hpp"
+
+#include "all_type_variant.hpp"
 #include "import_export/binary/binary_writer.hpp"
 #include "import_export/csv/csv_writer.hpp"
+#include "import_export/file_type.hpp"
+#include "operators/abstract_operator.hpp"
+#include "operators/abstract_read_only_operator.hpp"
+#include "storage/table.hpp"
+#include "types.hpp"
 #include "utils/assert.hpp"
 
 namespace hyrise {
@@ -33,7 +45,7 @@ std::string Export::description(DescriptionMode description_mode) const {
 }
 
 std::shared_ptr<const Table> Export::_on_execute() {
-  if (_filename.empty() || std::all_of(_filename.begin(), _filename.end(), isspace)) {
+  if (_filename.empty() || std::ranges::all_of(_filename, isspace)) {
     Fail("Export: File name must not be empty.");
   }
 

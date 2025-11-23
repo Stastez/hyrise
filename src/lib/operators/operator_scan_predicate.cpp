@@ -1,9 +1,24 @@
 #include "operator_scan_predicate.hpp"
 
+#include <memory>
+#include <optional>
+#include <ostream>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include <boost/variant/get.hpp>
+
+#include "all_parameter_variant.hpp"
+#include "all_type_variant.hpp"
 #include "expression/abstract_predicate_expression.hpp"
+#include "expression/correlated_parameter_expression.hpp"
 #include "expression/expression_functional.hpp"
+#include "expression/placeholder_expression.hpp"
 #include "expression/value_expression.hpp"
 #include "logical_query_plan/abstract_lqp_node.hpp"
+#include "storage/table.hpp"
+#include "types.hpp"
 #include "utils/assert.hpp"
 #include "utils/performance_warning.hpp"
 
@@ -106,7 +121,7 @@ std::optional<std::vector<OperatorScanPredicate>> OperatorScanPredicate::from_ex
         !variant_is_null(boost::get<AllTypeVariant>(*argument_c))) {
       // This is the BETWEEN case that we can handle
       return std::vector<OperatorScanPredicate>{
-          OperatorScanPredicate{boost::get<ColumnID>(*argument_a), predicate_condition, *argument_b, *argument_c}};
+          OperatorScanPredicate{boost::get<ColumnID>(*argument_a), predicate_condition, *argument_b, argument_c}};
     }
 
     PerformanceWarning("BETWEEN handled as two table scans because no BETWEEN specialization was available");

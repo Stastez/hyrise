@@ -1,18 +1,26 @@
 #include "column_vs_value_table_scan_impl.hpp"
 
+#include <cstddef>
 #include <memory>
-#include <utility>
+#include <string>
+#include <type_traits>
 #include <vector>
 
+#include "abstract_dereferenced_column_table_scan_impl.hpp"
+#include "all_type_variant.hpp"
+#include "resolve_type.hpp"
 #include "sorted_segment_search.hpp"
+#include "storage/abstract_segment.hpp"
 #include "storage/base_dictionary_segment.hpp"
 #include "storage/create_iterable_from_segment.hpp"
-#include "storage/resolve_encoded_segment_type.hpp"
+#include "storage/pos_lists/abstract_pos_list.hpp"
+#include "storage/pos_lists/row_id_pos_list.hpp"
 #include "storage/segment_iterables/create_iterable_from_attribute_vector.hpp"
 #include "storage/segment_iterate.hpp"
-
-#include "resolve_type.hpp"
+#include "storage/table.hpp"
 #include "type_comparison.hpp"
+#include "types.hpp"
+#include "utils/assert.hpp"
 
 namespace hyrise {
 
@@ -56,7 +64,7 @@ void ColumnVsValueTableScanImpl::_scan_non_reference_segment(
 void ColumnVsValueTableScanImpl::_scan_generic_segment(
     const AbstractSegment& segment, const ChunkID chunk_id, RowIDPosList& matches,
     const std::shared_ptr<const AbstractPosList>& position_filter) const {
-  segment_with_iterators_filtered(segment, position_filter, [&](auto it, [[maybe_unused]] const auto end) {
+  segment_with_iterators_filtered(segment, position_filter, [&](auto it, [[maybe_unused]] const auto& end) {
     // Don't instantiate this for this for DictionarySegments and ReferenceSegments to save compile time.
     // DictionarySegments are handled in _scan_dictionary_segment()
     // ReferenceSegments are handled via position_filter
@@ -116,8 +124,10 @@ void ColumnVsValueTableScanImpl::_scan_dictionary_segment(
   if (_value_matches_all(segment, search_value_id)) {
     if (_column_is_nullable) {
       // We still have to check for NULLs
-      iterable.with_iterators(position_filter, [&](auto it, auto end) {
-        static const auto always_true = [](const auto&) { return true; };
+      iterable.with_iterators(position_filter, [&](const auto& it, const auto& end) {
+        static const auto always_true = [](const auto&) {
+          return true;
+        };
         _scan_with_iterators<true>(always_true, it, end, chunk_id, matches);
       });
     } else {
@@ -155,7 +165,7 @@ void ColumnVsValueTableScanImpl::_scan_dictionary_segment(
       return predicate_comparator(position.value(), search_value_id);
     };
 
-    iterable.with_iterators(position_filter, [&](auto it, auto end) {
+    iterable.with_iterators(position_filter, [&](const auto& it, const auto& end) {
       // dictionary.size() represents a NULL in the AttributeVector. For some PredicateConditions, we can
       // avoid explicitly checking for it, since the condition (e.g., LessThan) would never return true for
       // dictionary.size() anyway.
@@ -181,7 +191,7 @@ void ColumnVsValueTableScanImpl::_scan_sorted_segment(const AbstractSegment& seg
       Fail("Expected ReferenceSegments to be handled before calling this method");
     } else {
       auto segment_iterable = create_iterable_from_segment(typed_segment);
-      segment_iterable.with_iterators(position_filter, [&](auto segment_begin, auto segment_end) {
+      segment_iterable.with_iterators(position_filter, [&](const auto& segment_begin, const auto& segment_end) {
         auto sorted_segment_search = SortedSegmentSearch(segment_begin, segment_end, sort_mode, _column_is_nullable,
                                                          predicate_condition, boost::get<ColumnDataType>(value));
 

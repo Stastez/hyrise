@@ -1,6 +1,8 @@
 #pragma once
 
+#include <memory>
 #include <type_traits>
+#include <utility>
 
 #include "storage/abstract_segment.hpp"
 #include "storage/buffer/pin_guard.hpp"
@@ -34,7 +36,7 @@ class DictionarySegmentIterable : public PointAccessibleSegmentIterable<Dictiona
       auto vector_pin_guard = SharedReadPinGuard{vector};
 
       auto begin = Iterator<CompressedVectorIterator, DictionaryIteratorType>{
-          _dictionary->cbegin(), _segment.null_value_id(), vector.cbegin(), ChunkOffset{0u}};
+          _dictionary->cbegin(), _segment.null_value_id(), vector.cbegin(), ChunkOffset{0}};
       auto end = Iterator<CompressedVectorIterator, DictionaryIteratorType>{
           _dictionary->cbegin(), _segment.null_value_id(), vector.cend(), static_cast<ChunkOffset>(_segment.size())};
 

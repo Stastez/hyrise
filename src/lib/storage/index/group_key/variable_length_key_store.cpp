@@ -1,8 +1,11 @@
 #include "variable_length_key_store.hpp"
 
+#include <cstddef>
 #include <iterator>
 #include <vector>
 
+#include "storage/index/group_key/variable_length_key_base.hpp"
+#include "types.hpp"
 #include "variable_length_key_proxy.hpp"
 
 namespace hyrise {
@@ -16,14 +19,14 @@ VariableLengthKeyStore::VariableLengthKeyStore(ChunkOffset size, CompositeKeyLen
 }
 
 VariableLengthKeyProxy VariableLengthKeyStore::operator[](ChunkOffset position) {
-  return VariableLengthKeyProxy(_data.data() + static_cast<size_t>(position) * _key_alignment, _bytes_per_key);
+  return VariableLengthKeyProxy(_data.data() + (static_cast<size_t>(position) * _key_alignment), _bytes_per_key);
 }
 
 VariableLengthKeyConstProxy VariableLengthKeyStore::operator[](ChunkOffset position) const {
   auto* const self = const_cast<VariableLengthKeyStore*>(this);  // NOLINT(cppcoreguidelines-pro-type-const-cast)
   // The const_cast is grandfathered in, because it would require significant changes to get rid of it. New code should
   // not require it.
-  return VariableLengthKeyConstProxy(self->_data.data() + static_cast<size_t>(position) * _key_alignment,
+  return VariableLengthKeyConstProxy(self->_data.data() + (static_cast<size_t>(position) * _key_alignment),
                                      _bytes_per_key);
 }
 

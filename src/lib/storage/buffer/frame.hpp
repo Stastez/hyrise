@@ -6,6 +6,47 @@
 
 namespace hyrise {
 
+/**
+ * Frames are the metadata objects for each page. We use a 64-bit atomic integer to store the (latching) state, NUMA node, dirty flag, and the frame version.
+ * All operations are atomic. The basic idea and most of the code is based on the SIGMOD'23 paper "Virtual-Memory Assisted Buffer Management" by Leis et al.
+ *
+ * The frame's upper 16 bits encode the (latching) state (see below). 1 bit is used for the dirty flag. 7 bits are used for the NUMA node. The lower 40 bits are used for the version.
+ * The version is used to tract concurrent changes to the state of the frame. The version is incremented after exclusively unlocking the frame. It is not incremented when unlocking in shared mode.
+ *
+ *  +-----------+-------+-----------+----------------+
+ *  | State     | Dirty | NUMA node | Version        |
+ *  +-----------+-------+-----------+----------------+
+ * 64          48      47          40                0
+ *
+ * The (latching) state is encoded as EVICTED (65535), LOCKED (65533), UNLOCKED (0), MARKED (65534) and LOCK_SHARED (1-65532). Initially, the frame is in state EVICTED.
+ * Then, the frame gets LOCKED for reading from disk. After that, the frame is UNLOCKED and can be used. It can be LOCKED again for write access. For multiple current readers,
+ * the state is incremented by 1 until MAX_LOCKED_SHARED is reached. When locking in shared mode, we also need to perform the same amount of unlocked to move the state to UNLOCKED again.
+ * The state MARKED is used for Second-Chance marking a frame for eviction. Only frames that were previously MARKED after the UNLOCKED state are eligible for eviction. This approximates an LRU policy.
+ * Later, the state is changed to EVICTED after the page has been written to disk. After unlocking a frame, the version counter is updated. The version is used to detect concurrent changes to the
+ * state of the frame. The version is primarily used for the Second-Chance eviction mechanism. We use it to verify if an enqueued frame has been modified in the meantime and thereby is outdated. If so,
+ * we know that a newer version of the frame has been enqueued or that the frame is currently locked. Thus, we can skip the frame for now. The version can also be used to implementet an optimistic latching
+ * mechanism.
+ *
+ * The reference implementation can be found in https://github.com/viktorleis/vmcache/blob/master/vmcache.cpp.
+ *
+ *                                                            try_lock_exclusive
+ *                                                   +----------------------------------------------------------------------+
+ *                                                   v                                                                      |
+ * +---------+  try_lock_exclusive                 +--------+  unlock_exclusive     +----------------+  try_mark          +---------------------+
+ * | EVICTED | ----------------------------------> |        | --------------------> |                | -----------------> |       MARKED        |
+ * +---------+                                     |        |                       |                |                    +---------------------+
+ *   ^         unlock_exclusive_and_set_evicted    |        |  try_lock_exclusive   |                |                        try_lock_shared
+ *   +-------------------------------------------- | LOCKED | <-------------------- |    UNLOCKED    |                      +-----------------+
+ *                                                 |        |                       |                |                      v                 |
+ *                                                 |        |                       |                |  try_lock_shared   +---------------------+
+ *                                                 |        |                       |                | -----------------> |    LOCKED_SHARED    | -+
+ *                                                 +--------+                       +----------------+                    +---------------------+  |
+ *                                                                                    ^                                     ^ unlock_shared   |    |
+ *                                                                                    | unlock_shared                       +-----------------+    |
+ *                                                                                    |                                                            |
+ *                                                                                    | (only if no other latches are present)                     |
+ *                                                                                    +------------------------------------------------------------+
+ */
 class Frame {
  public:
   using StateVersionType = uint64_t;
@@ -70,4 +111,5 @@ class Frame {
   std::atomic<StateVersionType> _state_and_version;
 };
 
+std::ostream& operator<<(std::ostream& os, const Frame& frame);
 }  // namespace hyrise

@@ -1,5 +1,6 @@
-#include "base_test.hpp"
+#include <optional>
 
+#include "base_test.hpp"
 #include "expression/arithmetic_expression.hpp"
 #include "expression/expression_functional.hpp"
 #include "expression/expression_utils.hpp"
@@ -306,10 +307,10 @@ TEST_F(LQPTranslatorTest, Sort) {
    * Build LQP and translate to PQP.
    *
    * LQP resembles:
-   *   SELECT a, b FROM int_float ORDER BY a, a + b DESC, b ASC
+   *   SELECT a, b FROM int_float ORDER BY a, a + b DESC NULLS LAST, b ASC
    */
 
-  const auto sort_modes = std::vector<SortMode>{{SortMode::Ascending, SortMode::Descending}};
+  const auto sort_modes = std::vector<SortMode>{{SortMode::AscendingNullsFirst, SortMode::DescendingNullsLast}};
 
   // clang-format off
   const auto lqp =
@@ -331,10 +332,10 @@ TEST_F(LQPTranslatorTest, Sort) {
   ASSERT_TRUE(sort);
 
   EXPECT_EQ(sort->sort_definitions().at(0).column, ColumnID{1});
-  EXPECT_EQ(sort->sort_definitions().at(0).sort_mode, SortMode::Ascending);
+  EXPECT_EQ(sort->sort_definitions().at(0).sort_mode, SortMode::AscendingNullsFirst);
 
   EXPECT_EQ(sort->sort_definitions().at(1).column, ColumnID{0});
-  EXPECT_EQ(sort->sort_definitions().at(1).sort_mode, SortMode::Descending);
+  EXPECT_EQ(sort->sort_definitions().at(1).sort_mode, SortMode::DescendingNullsLast);
 
   const auto projection_b = std::dynamic_pointer_cast<const Projection>(sort->left_input());
   ASSERT_TRUE(projection_b);
@@ -1148,7 +1149,7 @@ TEST_F(LQPTranslatorTest, Export) {
 }
 
 TEST_F(LQPTranslatorTest, Import) {
-  const auto lqp = ImportNode::make("a_table", "a_file.tbl", FileType::Auto);
+  const auto lqp = ImportNode::make("a_table", "a_file.tbl", FileType::Auto, std::nullopt);
 
   const auto pqp = LQPTranslator{}.translate_node(lqp);
   const auto importer = std::dynamic_pointer_cast<Import>(pqp);
@@ -1161,7 +1162,6 @@ TEST_F(LQPTranslatorTest, ChangeMetaTable) {
   // clang-format off
   const auto lqp =
   ChangeMetaTableNode::make("meta_table", MetaTableChangeType::Insert,
-    DummyTableNode::make(),
     DummyTableNode::make());
   // clang-format on
 
@@ -1170,7 +1170,31 @@ TEST_F(LQPTranslatorTest, ChangeMetaTable) {
 
   EXPECT_EQ(change_meta_table->type(), OperatorType::ChangeMetaTable);
   EXPECT_EQ(change_meta_table->left_input()->type(), OperatorType::TableWrapper);
-  EXPECT_EQ(change_meta_table->right_input()->type(), OperatorType::TableWrapper);
+  EXPECT_FALSE(change_meta_table->right_input());
+}
+
+TEST_F(LQPTranslatorTest, TranslatePrunableSubqueries) {
+  // clang-format off
+  const auto subquery =
+  ProjectionNode::make(expression_vector(min_(int_float_a)),
+    AggregateNode::make(expression_vector(), expression_vector(min_(int_float_a)),
+      int_float_node));
+
+  const auto lqp =
+  PredicateNode::make(equals_(int_float2_a, lqp_subquery_(subquery)),
+    int_float2_node);
+  // clang-format on
+
+  int_float2_node->set_prunable_subquery_predicates({lqp});
+
+  const auto pqp = LQPTranslator{}.translate_node(lqp);
+  const auto& get_table = std::dynamic_pointer_cast<const GetTable>(pqp->left_input());
+  ASSERT_TRUE(get_table);
+  const auto& prunable_subquery_scans = get_table->prunable_subquery_predicates();
+  ASSERT_EQ(prunable_subquery_scans.size(), 1);
+  EXPECT_EQ(prunable_subquery_scans.front(), pqp);
+  EXPECT_TRUE(int_float2_node->pruned_chunk_ids().empty());
+  EXPECT_TRUE(get_table->pruned_chunk_ids().empty());
 }
 
 TEST_F(LQPTranslatorTest, WindowNode) {

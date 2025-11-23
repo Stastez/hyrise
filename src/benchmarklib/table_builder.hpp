@@ -1,18 +1,20 @@
 #pragma once
 
+#include <algorithm>
+#include <memory>
 #include <optional>
 #include <type_traits>
 #include <utility>
 #include <vector>
 
+#include <boost/container/pmr/monotonic_buffer_resource.hpp>
 #include <boost/hana/assert.hpp>
 #include <boost/hana/for_each.hpp>
 #include <boost/hana/replicate.hpp>
+#include <boost/hana/size.hpp>
 #include <boost/hana/tuple.hpp>
 #include <boost/hana/zip_with.hpp>
 
-#include <boost/container/pmr/monotonic_buffer_resource.hpp>
-#include "hyrise.hpp"
 #include "resolve_type.hpp"
 #include "storage/buffer/buffer_pool_allocator.hpp"
 #include "storage/buffer/pin_guard.hpp"
@@ -51,7 +53,7 @@ class OptionalConstexpr<T, _has_value, std::enable_if_t<!_has_value>> {
   static constexpr bool has_value = false;
 
   T& value() {
-    Assert(false, "empty optional has no value");
+    Fail("Empty optional has no value.");
     return {};
   }
 };
@@ -138,7 +140,9 @@ class TableBuilder {
     _table = std::make_shared<Table>(column_definitions, TableType::Data, chunk_size, UseMvcc::Yes);
 
     // Reserve some space in the vectors
-    boost::hana::for_each(_value_vectors, [&](auto& values) { values.reserve(_estimated_rows_per_chunk); });
+    boost::hana::for_each(_value_vectors, [&](auto& values) {
+      values.reserve(_estimated_rows_per_chunk);
+    });
     boost::hana::for_each(_null_value_vectors, [&](auto& null_values) {
       if constexpr (std::decay_t<decltype(null_values)>::has_value) {
         null_values.value().reserve(_estimated_rows_per_chunk);
@@ -174,10 +178,11 @@ class TableBuilder {
 
       // the type of optional_or_value is either std::optional<T> or just T, hence the variable name
       auto& optional_or_value = values_and_null_values_and_value[boost::hana::llong_c<2>];
+
       constexpr auto column_is_nullable = std::decay_t<decltype(null_values)>::has_value;
       auto value_is_null = table_builder::is_null(optional_or_value);
 
-      DebugAssert(column_is_nullable || !value_is_null, "cannot insert null value into not-null-column");
+      DebugAssert(column_is_nullable || !value_is_null, "Cannot insert null value into not-NULL column.");
 
       if (value_is_null) {
         values.emplace_back();

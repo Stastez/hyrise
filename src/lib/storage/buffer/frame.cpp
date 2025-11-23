@@ -140,4 +140,35 @@ bool Frame::is_unlocked() const {
   return state(_state_and_version.load()) == UNLOCKED;
 }
 
+std::ostream& operator<<(std::ostream& ostream, const Frame& frame) {
+  const auto state_and_version = frame.state_and_version();
+  const auto state = Frame::state(state_and_version);
+  const auto version = Frame::version(state_and_version);
+  const auto node_id = frame.node_id();
+  const auto dirty = frame.is_dirty();
+
+  ostream << "Frame(state = ";
+
+  switch (state) {
+    case Frame::UNLOCKED:
+      ostream << "UNLOCKED";
+      break;
+    case Frame::LOCKED:
+      ostream << "LOCKED";
+      break;
+    case Frame::MARKED:
+      ostream << "MARKED";
+      break;
+    case Frame::EVICTED:
+      ostream << "EVICTED";
+      break;
+    default:
+      ostream << "LOCKED_SHARED (" << state << ")";
+      break;
+  }
+
+  ostream << ", node_id = " << node_id << ", dirty = " << dirty << ", version = " << version << ")";
+
+  return ostream;
+}
 }  // namespace hyrise

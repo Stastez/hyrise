@@ -1,9 +1,34 @@
 #include "sort.hpp"
 
-#include "hyrise.hpp"
-#include "storage/segment_iterate.hpp"
-#include "utils/timer.hpp"
+#include <algorithm>
+#include <chrono>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <optional>
+#include <string>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
+#include "all_type_variant.hpp"
+#include "operators/abstract_operator.hpp"
+#include "operators/abstract_read_only_operator.hpp"
+#include "operators/operator_performance_data.hpp"
+#include "resolve_type.hpp"
+#include "storage/abstract_segment.hpp"
+#include "storage/base_segment_accessor.hpp"
 #include "storage/buffer/jemalloc_resource.hpp"
+#include "storage/chunk.hpp"
+#include "storage/pos_lists/row_id_pos_list.hpp"
+#include "storage/reference_segment.hpp"
+#include "storage/segment_iterate.hpp"
+#include "storage/table.hpp"
+#include "storage/value_segment.hpp"
+#include "types.hpp"
+#include "utils/assert.hpp"
+#include "utils/timer.hpp"
 
 namespace {
 
@@ -26,6 +51,7 @@ std::shared_ptr<Table> write_materialized_output_table(const std::shared_ptr<con
   // After we created the output table and initialized the column structure, we can start adding values. Because the
   // values are not sorted by input chunks anymore, we can't process them chunk by chunk. Instead the values are copied
   // column by column for each output row.
+
   const auto output_chunk_count = div_ceil(pos_list.size(), output_chunk_size);
   Assert(pos_list.size() == unsorted_table->row_count(), "Mismatching size of input table and PosList");
 
@@ -95,8 +121,8 @@ std::shared_ptr<Table> write_materialized_output_table(const std::shared_ptr<con
           }
 
           chunk_it->push_back(value_segment);
-          value_segment_value_vector = pmr_vector<ColumnDataType>(allocator);
-          value_segment_null_vector = pmr_vector<bool>(allocator);
+          value_segment_value_vector = pmr_vector<ColumnDataType>{allocator};
+          value_segment_null_vector = pmr_vector<bool>{allocator};
 
           const auto next_chunk_size =
               std::min(static_cast<size_t>(output_chunk_size), static_cast<size_t>(row_count - row_index));
@@ -282,6 +308,9 @@ std::shared_ptr<const Table> Sort::_on_execute() {
     Assert(column_sort_definition.column != INVALID_COLUMN_ID, "Sort: Invalid column in sort definition");
     Assert(column_sort_definition.column < input_table->column_count(),
            "Sort: Column ID is greater than table's column count");
+    Assert(column_sort_definition.sort_mode == SortMode::AscendingNullsFirst ||
+               column_sort_definition.sort_mode == SortMode::DescendingNullsFirst,
+           "Sort does not support NULLS LAST.");
   }
 
   if (input_table->row_count() == 0) {
@@ -292,7 +321,7 @@ std::shared_ptr<const Table> Sort::_on_execute() {
     return input_table;
   }
 
-  std::shared_ptr<Table> sorted_table;
+  auto sorted_table = std::shared_ptr<Table>{};
 
   // After the first (least significant) sort operation has been completed, this holds the order of the table as it has
   // been determined so far. This is not a completely proper PosList on the input table as it might point to
@@ -329,7 +358,7 @@ std::shared_ptr<const Table> Sort::_on_execute() {
   //  (b) a column in the table references multiple tables (see write_reference_output_table for details), or
   //  (c) a column in the table references multiple columns in the same table (which is an unlikely edge case).
   // Cases (b) and (c) can only occur if there is more than one ReferenceSegment in an input chunk.
-  Timer timer;
+  auto timer = Timer{};
   auto must_materialize = _force_materialization == ForceMaterialization::Yes;
   const auto input_chunk_count = input_table->chunk_count();
   if (!must_materialize && input_table->type() == TableType::References && input_chunk_count > 1) {
@@ -372,7 +401,7 @@ std::shared_ptr<const Table> Sort::_on_execute() {
   const auto output_chunk_count = sorted_table->chunk_count();
   for (auto output_chunk_id = ChunkID{0}; output_chunk_id < output_chunk_count; ++output_chunk_id) {
     const auto& output_chunk = sorted_table->get_chunk(output_chunk_id);
-    output_chunk->finalize();
+    output_chunk->set_immutable();
     output_chunk->set_individually_sorted_by(final_sort_definition);
   }
 
@@ -390,7 +419,7 @@ class Sort::SortImpl {
   std::chrono::nanoseconds sort_time{};
 
   SortImpl(const std::shared_ptr<const Table>& table_in, const ColumnID column_id,
-           const SortMode sort_mode = SortMode::Ascending)
+           const SortMode sort_mode = SortMode::AscendingNullsFirst)
       : _table_in(table_in), _column_id(column_id), _sort_mode(sort_mode) {
     const auto row_count = _table_in->row_count();
     _row_id_value_vector.reserve(row_count);
@@ -401,18 +430,19 @@ class Sort::SortImpl {
   // Returns a PosList, which can either be used as an input to the next call of sort or for materializing the
   // output table.
   RowIDPosList sort(const std::optional<RowIDPosList>& previously_sorted_pos_list) {
-    Timer timer;
+    auto timer = Timer{};
     // 1. Prepare Sort: Creating RowID-value-Structure
     _materialize_sort_column(previously_sorted_pos_list);
     materialization_time = timer.lap();
 
     // 2. After we got our ValueRowID Map we sort the map by the value of the pair
     const auto sort_with_comparator = [&](auto comparator) {
-      std::stable_sort(
-          _row_id_value_vector.begin(), _row_id_value_vector.end(),
-          [comparator](RowIDValuePair lhs, RowIDValuePair rhs) { return comparator(lhs.second, rhs.second); });
+      std::stable_sort(_row_id_value_vector.begin(), _row_id_value_vector.end(),
+                       [comparator](const RowIDValuePair& lhs, const RowIDValuePair& rhs) {
+                         return comparator(lhs.second, rhs.second);
+                       });
     };
-    if (_sort_mode == SortMode::Ascending) {
+    if (_sort_mode == SortMode::AscendingNullsFirst) {
       sort_with_comparator(std::less<>{});
     } else {
       sort_with_comparator(std::greater<>{});
@@ -432,10 +462,10 @@ class Sort::SortImpl {
     auto allocator = PolymorphicAllocator<RowID>{};
     auto pin_guard = AllocatorPinGuard{allocator};
 
-    RowIDPosList pos_list{allocator};
+    auto pos_list = RowIDPosList{allocator};
     pos_list.reserve(_row_id_value_vector.size());
     for (const auto& [row_id, _] : _row_id_value_vector) {
-      pos_list.emplace_back(row_id);
+      pos_list.push_back(row_id);
     }
     temporary_result_writing_time = timer.lap();
     return pos_list;

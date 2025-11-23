@@ -1,6 +1,9 @@
 #include "adaptive_radix_tree_index.hpp"
 
 #include <algorithm>
+#include <array>
+#include <cstddef>
+#include <cstdint>
 #include <iterator>
 #include <limits>
 #include <memory>
@@ -8,8 +11,10 @@
 #include <vector>
 
 #include "adaptive_radix_tree_nodes.hpp"
+#include "all_type_variant.hpp"
 #include "storage/base_dictionary_segment.hpp"
 #include "storage/index/abstract_chunk_index.hpp"
+#include "storage/index/chunk_index_type.hpp"
 #include "storage/vector_compression/resolve_compressed_vector_type.hpp"
 #include "types.hpp"
 #include "utils/assert.hpp"
@@ -113,7 +118,7 @@ std::shared_ptr<ARTNode> AdaptiveRadixTreeIndex::_bulk_insert(
     const std::vector<std::pair<BinaryComparable, ChunkOffset>>& values, size_t depth,
     AbstractChunkIndex::Iterator& it) {
   // This is the anchor of the recursion: if all values have the same key, create a leaf.
-  if (std::all_of(values.begin(), values.end(), [&values](const std::pair<BinaryComparable, ChunkOffset>& pair) {
+  if (std::ranges::all_of(values, [&values](const std::pair<BinaryComparable, ChunkOffset>& pair) {
         return values.front().first == pair.first;
       })) {
     // copy the Iterator in the _chunk_offsets - vector --> this is the lower_bound of the leaf

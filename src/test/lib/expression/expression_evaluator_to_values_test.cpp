@@ -1,7 +1,6 @@
 #include <optional>
 
 #include "base_test.hpp"
-
 #include "expression/arithmetic_expression.hpp"
 #include "expression/binary_predicate_expression.hpp"
 #include "expression/case_expression.hpp"
@@ -21,6 +20,7 @@
 #include "operators/projection.hpp"
 #include "operators/table_scan.hpp"
 #include "operators/table_wrapper.hpp"
+#include "operators/union_all.hpp"
 #include "storage/table.hpp"
 #include "utils/load_table.hpp"
 
@@ -59,13 +59,22 @@ class ExpressionEvaluatorToValuesTest : public BaseTest {
     bool_b = PQPColumnExpression::from_table(*table_bools, "b");
     bool_c = PQPColumnExpression::from_table(*table_bools, "c");
 
-    // Load table date_time
+    // Load table_date_time
     table_date_time = load_table("resources/test_data/tbl/expression_evaluator/input_date_time.tbl");
     dates = PQPColumnExpression::from_table(*table_date_time, "dates");
     timestamps = PQPColumnExpression::from_table(*table_date_time, "timestamps");
 
+    // Load table_mixed
+    table_mixed = load_table("resources/test_data/tbl/expression_evaluator/input_mixed.tbl");
+    mixed_a = PQPColumnExpression::from_table(*table_mixed, "a");
+    mixed_b = PQPColumnExpression::from_table(*table_mixed, "b");
+    mixed_c = PQPColumnExpression::from_table(*table_mixed, "c");
+    mixed_d = PQPColumnExpression::from_table(*table_mixed, "d");
+    mixed_e = PQPColumnExpression::from_table(*table_mixed, "e");
+    mixed_f = PQPColumnExpression::from_table(*table_mixed, "f");
+
     // Create table_empty
-    TableColumnDefinitions empty_table_columns;
+    auto empty_table_columns = TableColumnDefinitions{};
     empty_table_columns.emplace_back("a", DataType::Int, false);
     empty_table_columns.emplace_back("b", DataType::Float, true);
     empty_table_columns.emplace_back("s", DataType::String, false);
@@ -123,10 +132,9 @@ class ExpressionEvaluatorToValuesTest : public BaseTest {
 
     std::cout << "Actual:\n  ";
     print(actual_normalized);
-    std::cout << std::endl;
-    std::cout << "Expected:\n  ";
+    std::cout << "\nExpected:\n  ";
     print(expected);
-    std::cout << std::endl;
+    std::cout << '\n';
 
     return false;
   }
@@ -141,17 +149,17 @@ class ExpressionEvaluatorToValuesTest : public BaseTest {
 
     std::cout << "Actual:\n  ";
     print(actual_normalized);
-    std::cout << std::endl;
-    std::cout << "Expected:\n  ";
+    std::cout << "\nExpected:\n  ";
     print(expected);
-    std::cout << std::endl;
+    std::cout << '\n';
 
     return false;
   }
 
-  std::shared_ptr<Table> table_empty, table_a, table_b, table_bools, table_date_time;
+  std::shared_ptr<Table> table_empty, table_a, table_b, table_bools, table_date_time, table_mixed;
 
-  std::shared_ptr<PQPColumnExpression> a, b, c, d, e, f, s1, s2, s3, x, bool_a, bool_b, bool_c, dates, timestamps;
+  std::shared_ptr<PQPColumnExpression> a, b, c, d, e, f, s1, s2, s3, x, bool_a, bool_b, bool_c, dates, timestamps,
+      mixed_a, mixed_b, mixed_c, mixed_d, mixed_e, mixed_f;
   std::shared_ptr<PQPColumnExpression> empty_a, empty_b, empty_s;
   std::shared_ptr<ArithmeticExpression> a_plus_b;
   std::shared_ptr<ArithmeticExpression> a_plus_c;
@@ -406,40 +414,62 @@ TEST_F(ExpressionEvaluatorToValuesTest, NegateSeries) {
 TEST_F(ExpressionEvaluatorToValuesTest, LikeLiteral) {
   EXPECT_TRUE(test_expression<int32_t>(*like_("hello", "hello"), {1}));
   EXPECT_TRUE(test_expression<int32_t>(*like_("hello", "Hello"), {0}));
+  EXPECT_TRUE(test_expression<int32_t>(*ilike_("hello", "Hello"), {1}));
   EXPECT_TRUE(test_expression<int32_t>(*not_like_("hello", "Hello"), {1}));
+  EXPECT_TRUE(test_expression<int32_t>(*not_ilike_("hello", "Hello"), {0}));
   EXPECT_TRUE(test_expression<int32_t>(*like_("hello", "h_ll%o"), {1}));
+  EXPECT_TRUE(test_expression<int32_t>(*ilike_("Hello", "h_ll%o"), {1}));
   EXPECT_TRUE(test_expression<int32_t>(*not_like_("hello", "h_ll%o"), {0}));
+  EXPECT_TRUE(test_expression<int32_t>(*not_ilike_("Hello", "h_ll%o"), {0}));
   EXPECT_TRUE(test_expression<int32_t>(*like_("hello", "H_ll_o"), {0}));
+  EXPECT_TRUE(test_expression<int32_t>(*ilike_("hello", "H_ll_o"), {0}));
   EXPECT_TRUE(test_expression<int32_t>(*not_like_("hello", "H_ll_o"), {1}));
+  EXPECT_TRUE(test_expression<int32_t>(*not_ilike_("hello", "H_ll_o"), {1}));
   EXPECT_TRUE(test_expression<int32_t>(*like_("hello", "%h%_l%o"), {1}));
+  EXPECT_TRUE(test_expression<int32_t>(*ilike_("Hello", "%h%_l%o"), {1}));
   EXPECT_TRUE(test_expression<int32_t>(*not_like_("hello", "%h%_l%o"), {0}));
+  EXPECT_TRUE(test_expression<int32_t>(*not_ilike_("Hello", "%h%_l%o"), {0}));
   EXPECT_TRUE(test_expression<int32_t>(*like_(null_(), "%h%_l%o"), {std::nullopt}));
+  EXPECT_TRUE(test_expression<int32_t>(*ilike_(null_(), "%h%_l%o"), {std::nullopt}));
   EXPECT_TRUE(test_expression<int32_t>(*not_like_(null_(), "%h%_l%o"), {std::nullopt}));
+  EXPECT_TRUE(test_expression<int32_t>(*not_ilike_(null_(), "%h%_l%o"), {std::nullopt}));
   EXPECT_TRUE(test_expression<int32_t>(*like_(null_(), null_()), {std::nullopt}));
+  EXPECT_TRUE(test_expression<int32_t>(*ilike_(null_(), null_()), {std::nullopt}));
   EXPECT_TRUE(test_expression<int32_t>(*not_like_(null_(), null_()), {std::nullopt}));
+  EXPECT_TRUE(test_expression<int32_t>(*not_ilike_(null_(), null_()), {std::nullopt}));
   EXPECT_TRUE(test_expression<int32_t>(*like_("hello", null_()), {std::nullopt}));
+  EXPECT_TRUE(test_expression<int32_t>(*ilike_("hello", null_()), {std::nullopt}));
   EXPECT_TRUE(test_expression<int32_t>(*not_like_("hello", null_()), {std::nullopt}));
+  EXPECT_TRUE(test_expression<int32_t>(*not_ilike_("hello", null_()), {std::nullopt}));
 }
 
 TEST_F(ExpressionEvaluatorToValuesTest, LikeSeries) {
   EXPECT_TRUE(test_expression<int32_t>(table_a, *like_(s1, concat_(s1, "%")), {1, 1, 1, 1}));
   EXPECT_TRUE(test_expression<int32_t>(table_a, *like_(s1, concat_(s1, "a")), {0, 0, 0, 0}));
   EXPECT_TRUE(test_expression<int32_t>(table_a, *not_like_(s1, "%a%"), {0, 1, 0, 0}));
+  EXPECT_TRUE(test_expression<int32_t>(table_a, *not_ilike_(s1, "%A%"), {0, 1, 0, 0}));
   EXPECT_TRUE(test_expression<int32_t>(table_a, *like_(s1, "%A%"), {0, 0, 0, 0}));
+  EXPECT_TRUE(test_expression<int32_t>(table_a, *ilike_(s1, "%A%"), {1, 0, 1, 1}));
   EXPECT_TRUE(test_expression<int32_t>(table_a, *like_(s1, "%H%e%_%l%"), {0, 1, 0, 0}));
+  EXPECT_TRUE(test_expression<int32_t>(table_a, *ilike_(s1, "%h%e%_%l%"), {0, 1, 0, 0}));
   EXPECT_TRUE(test_expression<int32_t>(table_a, *not_like_(s1, "%H%e%_%l%"), {1, 0, 1, 1}));
+  EXPECT_TRUE(test_expression<int32_t>(table_a, *not_ilike_(s1, "%h%e%_%l%"), {1, 0, 1, 1}));
   EXPECT_TRUE(test_expression<int32_t>(table_a, *like_(s3, "%a%"), {std::nullopt, 1, 0, std::nullopt}));
+  EXPECT_TRUE(test_expression<int32_t>(table_a, *ilike_(s3, "%A%"), {std::nullopt, 1, 0, std::nullopt}));
   EXPECT_TRUE(test_expression<int32_t>(table_a, *not_like_(s3, "%a%"), {std::nullopt, 0, 1, std::nullopt}));
+  EXPECT_TRUE(test_expression<int32_t>(table_a, *not_ilike_(s3, "%A%"), {std::nullopt, 0, 1, std::nullopt}));
   EXPECT_TRUE(test_expression<int32_t>(table_a, *like_(s1, "%a%"), {1, 0, 1, 1}));
+  EXPECT_TRUE(test_expression<int32_t>(table_a, *ilike_(s1, "%A%"), {1, 0, 1, 1}));
   EXPECT_TRUE(test_expression<int32_t>(table_a, *like_("Same", s1), {0, 0, 0, 1}));
+  EXPECT_TRUE(test_expression<int32_t>(table_a, *ilike_("same", s1), {0, 0, 0, 1}));
   EXPECT_TRUE(test_expression<int32_t>(table_a, *not_like_("Same", s1), {1, 1, 1, 0}));
+  EXPECT_TRUE(test_expression<int32_t>(table_a, *not_ilike_("Same", s1), {1, 1, 1, 0}));
   EXPECT_TRUE(test_expression<int32_t>(table_empty, *like_(empty_s, "hello"), {}));
   EXPECT_TRUE(test_expression<int32_t>(table_empty, *like_("hello", empty_s), {}));
 }
 
 TEST_F(ExpressionEvaluatorToValuesTest, SubstrLiterals) {
-  /** Hyrise follows SQLite semantics for negative indices in SUBSTR */
-
+  // Hyrise follows SQLite semantics for negative indices in SUBSTR.
   EXPECT_TRUE(test_expression<pmr_string>(*substr_("", 3, 4), {""}));
   EXPECT_TRUE(test_expression<pmr_string>(*substr_("Hello World", 4, 4), {"lo W"}));
   EXPECT_TRUE(test_expression<pmr_string>(*substr_("Hello World", -18, 4), {""}));
@@ -450,8 +480,8 @@ TEST_F(ExpressionEvaluatorToValuesTest, SubstrLiterals) {
   EXPECT_TRUE(test_expression<pmr_string>(*substr_("Hello World", -5, -2), {""}));
   EXPECT_TRUE(test_expression<pmr_string>(*substr_("Hello World", 4, 40), {"lo World"}));
   EXPECT_TRUE(test_expression<pmr_string>(*substr_("Hello World", 20, 1), {""}));
-  // TODO(moritz) enable once casting expressions are in, so SUBSTR can cast this 4ul -> 4i
-  //  EXPECT_TRUE(test_expression<pmr_string>(*substr("Hello World", int64_t{4}, 4), {"lo W"}));
+  EXPECT_TRUE(test_expression<pmr_string>(*substr_("Hello World", int64_t{4}, 4), {"lo W"}));
+  EXPECT_TRUE(test_expression<pmr_string>(*substr_("Hello World", 4, int64_t{4}), {"lo W"}));
   EXPECT_TRUE(test_expression<pmr_string>(*substr_(null_(), 1, 2), {std::nullopt}));
   EXPECT_TRUE(test_expression<pmr_string>(*substr_("Hello World", null_(), 2), {std::nullopt}));
   EXPECT_TRUE(test_expression<pmr_string>(*substr_("Hello World", 2, null_()), {std::nullopt}));
@@ -485,6 +515,39 @@ TEST_F(ExpressionEvaluatorToValuesTest, ConcatSeries) {
   EXPECT_TRUE(test_expression<pmr_string>(table_a, *concat_(s1, s2, s3),
                                           {std::nullopt, "HelloWorldabcd", "whatupxyzlol", std::nullopt}));
   EXPECT_TRUE(test_expression<pmr_string>(table_empty, *concat_(empty_s, "hello"), {}));
+}
+
+TEST_F(ExpressionEvaluatorToValuesTest, AbsLiterals) {
+  EXPECT_TRUE(test_expression<int32_t>(*abs_(1), {1}));
+  EXPECT_TRUE(test_expression<int32_t>(*abs_(0), {0}));
+  EXPECT_TRUE(test_expression<int32_t>(*abs_(-1), {1}));
+  EXPECT_TRUE(test_expression<int32_t>(*abs_(null_()), {std::nullopt}));
+
+  EXPECT_TRUE(test_expression<int64_t>(*abs_(int64_t{100}), {100}));
+  EXPECT_TRUE(test_expression<int64_t>(*abs_(int64_t{0}), {0}));
+  EXPECT_TRUE(test_expression<int64_t>(*abs_(int64_t{-100}), {100}));
+  EXPECT_TRUE(test_expression<int64_t>(*abs_(null_()), {std::nullopt}));
+
+  EXPECT_TRUE(test_expression<float>(*abs_(1.23f), {1.23f}));
+  EXPECT_TRUE(test_expression<float>(*abs_(0.0f), {0.0f}));
+  EXPECT_TRUE(test_expression<float>(*abs_(-1.23f), {1.23f}));
+  EXPECT_TRUE(test_expression<float>(*abs_(null_()), {std::nullopt}));
+
+  EXPECT_TRUE(test_expression<double>(*abs_(123.123), {123.123}));
+  EXPECT_TRUE(test_expression<double>(*abs_(0.0), {0.0}));
+  EXPECT_TRUE(test_expression<double>(*abs_(-123.123), {123.123}));
+  EXPECT_TRUE(test_expression<double>(*abs_(null_()), {std::nullopt}));
+
+  EXPECT_THROW(test_expression<pmr_string>(*abs_("hello"), {}), std::logic_error);
+}
+
+TEST_F(ExpressionEvaluatorToValuesTest, AbsSeries) {
+  EXPECT_TRUE(test_expression<int32_t>(table_mixed, *abs_(mixed_a), {1, 2, 3, 4}));
+  EXPECT_TRUE(test_expression<int32_t>(table_mixed, *abs_(mixed_b), {1, 2, 3, std::nullopt}));
+  EXPECT_TRUE(test_expression<int64_t>(table_mixed, *abs_(mixed_c), {33, std::nullopt, 1234, std::nullopt}));
+  EXPECT_TRUE(test_expression<float>(table_mixed, *abs_(mixed_d), {1.23f, 2.34f, 123.4f, std::nullopt}));
+  EXPECT_TRUE(test_expression<double>(table_mixed, *abs_(mixed_e), {1234.5, 2345.6, 3456.7, std::nullopt}));
+  EXPECT_THROW(test_expression<pmr_string>(table_mixed, *abs_(mixed_f), {"1", "2", "3", "4"}), std::logic_error);
 }
 
 TEST_F(ExpressionEvaluatorToValuesTest, Parameter) {
@@ -576,8 +639,7 @@ TEST_F(ExpressionEvaluatorToValuesTest, InSubqueryUncorrelatedNotPrecalculated) 
   table_wrapper->execute();
   const auto table_scan = std::make_shared<TableScan>(table_wrapper, equals_(a, 3));
   table_scan->execute();
-  const auto projection =
-      std::make_shared<Projection>(table_scan, expression_vector(PQPColumnExpression::from_table(*table_a, "b")));
+  const auto projection = std::make_shared<Projection>(table_scan, expression_vector(b));
 
   const auto subquery = pqp_subquery_(projection, DataType::Int, true);
 
@@ -587,7 +649,7 @@ TEST_F(ExpressionEvaluatorToValuesTest, InSubqueryUncorrelatedNotPrecalculated) 
 }
 
 TEST_F(ExpressionEvaluatorToValuesTest, InSubqueryCorrelated) {
-  // PQP that returns the column "b" multiplied with the current value in "a"
+  // PQP that returns the column "b" multiplied with the current value in "a".
   //
   // row   list returned from subquery
   //  0      (1, 2, 3, 4)
@@ -612,7 +674,7 @@ TEST_F(ExpressionEvaluatorToValuesTest, InSubqueryCorrelated) {
   EXPECT_TRUE(test_expression<int32_t>(table_a, *not_in_(null_(), subquery_a),
                                        {std::nullopt, std::nullopt, std::nullopt, std::nullopt}));
 
-  // PQP that returns the column "c" added to the current value in "a"
+  // PQP that returns the column "c" added to the current value in "a".
   //
   // row   list returned from subquery
   //  0      (34, NULL, 35, NULL)
@@ -646,6 +708,32 @@ TEST_F(ExpressionEvaluatorToValuesTest, InSubqueryCorrelated) {
   // subquery operator should have been executed.
   EXPECT_FALSE(pqp_a->executed());
   EXPECT_FALSE(pqp_b->executed());
+}
+
+TEST_F(ExpressionEvaluatorToValuesTest, CorrelatedSubqueryPrecalculated) {
+  const auto table_wrapper = std::make_shared<TableWrapper>(table_a);
+  const auto projection = std::make_shared<Projection>(table_wrapper, expression_vector(a));
+  const auto subquery = pqp_subquery_(projection, DataType::Int, false, std::make_pair(ParameterID{0}, ColumnID{0}));
+
+  // Operators for correlated subqueries must not be reused, and the ExpressionEvaluator creates a copy for each row.
+  // Thus, the input PQP must not be executed before.
+  table_wrapper->execute();
+  if constexpr (HYRISE_DEBUG) {
+    EXPECT_THROW(test_expression<int32_t>(table_a, *in_(4, subquery), {1, 1, 1, 1}), std::logic_error);
+  }
+
+  projection->execute();
+  EXPECT_THROW(test_expression<int32_t>(table_a, *in_(4, subquery), {1, 1, 1, 1}), std::logic_error);
+}
+
+TEST_F(ExpressionEvaluatorToValuesTest, CorrelatedSubqueryDiamond) {
+  const auto table_wrapper = std::make_shared<TableWrapper>(table_a);
+  const auto projection = std::make_shared<Projection>(table_wrapper, expression_vector(a));
+  const auto union_all = std::make_shared<UnionAll>(projection, projection);
+  const auto subquery = pqp_subquery_(union_all, DataType::Int, false, std::make_pair(ParameterID{0}, ColumnID{0}));
+
+  // While executing the subquery LQP, the ExpressionEvaluator must execute each operator once, also for diamonds.
+  EXPECT_TRUE(test_expression<int32_t>(table_a, *in_(4, subquery), {1, 1, 1, 1}));
 }
 
 TEST_F(ExpressionEvaluatorToValuesTest, NotInListLiterals) {

@@ -2,6 +2,8 @@
 
 #include <array>
 #include <cstdint>
+#include <utility>
+#include <vector>
 
 #include <boost/hana/at_key.hpp>
 #include <boost/hana/contains.hpp>
@@ -11,8 +13,9 @@
 #include <boost/hana/tuple.hpp>
 #include <boost/hana/type.hpp>
 
+#include "magic_enum/magic_enum.hpp"
+
 #include "all_type_variant.hpp"
-#include "magic_enum.hpp"
 #include "storage/vector_compression/vector_compression.hpp"
 #include "utils/enum_constant.hpp"
 
@@ -55,8 +58,6 @@ constexpr auto encoding_supports_data_type(SegmentEncodingType encoding_type, Co
 bool encoding_supports_data_type(EncodingType encoding_type, DataType data_type);
 
 struct SegmentEncodingSpec {
-  constexpr SegmentEncodingSpec() : encoding_type{EncodingType::Dictionary} {}
-
   explicit constexpr SegmentEncodingSpec(EncodingType init_encoding_type) : encoding_type{init_encoding_type} {}
 
   constexpr SegmentEncodingSpec(EncodingType init_encoding_type,

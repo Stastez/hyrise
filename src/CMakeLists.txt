@@ -42,9 +42,6 @@ endif()
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 20)
 
-# Hotfix for boost bug (https://github.com/boostorg/asio/issues/312):
-add_compile_options(-DBOOST_ASIO_DISABLE_CONCEPTS)
-
 add_compile_options(-pthread -Wno-unknown-warning-option)
 
 # Use HYRISE_RELAXED_BUILD to disable strict warnings (e.g., when testing an unsupported compiler or an unsupported system)
@@ -65,13 +62,6 @@ else()
     message(WARNING "Hyrise will be built with most compiler warnings deactivated. This is fine if you want to test Hyrise but will become an issue when you want to contribute code.")
 endif()
 
-if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 13 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS_EQUAL 14.99)
-        message(WARNING "Disabling 'reserved-identifier' warning for clang 13/14 (version is ${CMAKE_CXX_COMPILER_VERSION}).")
-        add_compile_options(-Wno-reserved-identifier)
-    endif()
-endif()
-
 include(${PROJECT_SOURCE_DIR}/cmake/TargetLinkLibrariesSystem.cmake)
 
 include_directories(
@@ -82,8 +72,13 @@ include_directories(
 
 set(ENABLE_CLANG_TIDY OFF CACHE BOOL "Run clang-tidy")
 if (ENABLE_CLANG_TIDY)
+    if (NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+        message(ERROR "clang-tidy is only available for Clang builds.")
+    endif()
+
+    # Get the full clang-tidy path (helps with macOS builds).
+    set(CMAKE_CXX_CLANG_TIDY "${CMAKE_C_COMPILER}-tidy")
     message(STATUS "clang-tidy enabled")
-    set(CMAKE_CXX_CLANG_TIDY "${CMAKE_SOURCE_DIR}/scripts/clang_tidy_wrapper.sh;${CMAKE_SOURCE_DIR}")
 endif()
 
 add_subdirectory(benchmarklib)

@@ -16,23 +16,23 @@ using namespace hyrise;  // NOLINT(build/namespaces)
 
 namespace {
 
-const std::unordered_set<std::string> filename_blacklist() {
-  auto filename_blacklist = std::unordered_set<std::string>{};
-  const auto blacklist_file_path = "resources/benchmark/tpcds/query_blacklist.cfg";
-  std::ifstream blacklist_file(blacklist_file_path);
+const std::unordered_set<std::string> filename_excludelist() {
+  auto filename_excludelist = std::unordered_set<std::string>{};
+  const auto excludelist_file_path = "resources/benchmark/tpcds/query_excludelist.cfg";
+  auto excludelist_file = std::ifstream(excludelist_file_path);
 
-  if (!blacklist_file) {
-    std::cerr << "Cannot open the blacklist file: " << blacklist_file_path << "\n";
+  if (!excludelist_file) {
+    std::cerr << "Cannot open the excludelist file: " << excludelist_file_path << "\n";
   } else {
-    std::string filename;
-    while (std::getline(blacklist_file, filename)) {
+    auto filename = std::string{};
+    while (std::getline(excludelist_file, filename)) {
       if (filename.size() > 0 && filename.at(0) != '#') {
-        filename_blacklist.emplace(filename);
+        filename_excludelist.emplace(filename);
       }
     }
-    blacklist_file.close();
+    excludelist_file.close();
   }
-  return filename_blacklist;
+  return filename_excludelist;
 }
 
 }  // namespace
@@ -56,16 +56,16 @@ int main(int argc, char* argv[]) {
   }
   scale_factor = cli_parse_result["scale"].as<int32_t>();
 
-  config = std::make_shared<BenchmarkConfig>(CLIConfigParser::parse_cli_options(cli_parse_result));
+  config = CLIConfigParser::parse_cli_options(cli_parse_result);
 
-  std::cout << "- TPC-DS scale factor is " << scale_factor << std::endl;
+  std::cout << "- TPC-DS scale factor is " << scale_factor << '\n';
 
   const auto query_path = std::string{"resources/benchmark/tpcds/tpcds-result-reproduction/query_qualification"};
 
   Assert(std::filesystem::is_directory(query_path), "Query path (" + query_path + ") has to be a directory.");
   Assert(std::filesystem::exists(std::filesystem::path{query_path + "/01.sql"}), "Queries have to be available.");
 
-  auto query_generator = std::make_unique<FileBasedBenchmarkItemRunner>(config, query_path, filename_blacklist());
+  auto query_generator = std::make_unique<FileBasedBenchmarkItemRunner>(config, query_path, filename_excludelist());
   if (config->verify) {
     // We can only verify the results for scale factor (SF) 1 since the dedicated result sets were obtained on this SF.
     Assert(scale_factor == 1, "TPC-DS result verification can only be performed on scale factor 1 (--scale 1).");
@@ -79,7 +79,7 @@ int main(int argc, char* argv[]) {
     add_indices_to_sqlite("resources/benchmark/tpcds/schema.sql", "resources/benchmark/tpcds/create_indices.sql",
                           benchmark_runner.sqlite_wrapper);
   }
-  std::cout << "done." << std::endl;
+  std::cout << "done.\n";
 
   benchmark_runner.run();
 }

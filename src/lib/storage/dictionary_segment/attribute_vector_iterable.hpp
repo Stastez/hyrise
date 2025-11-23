@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <utility>
 
 #include "storage/segment_iterables.hpp"
@@ -22,7 +23,7 @@ class AttributeVectorIterable : public PointAccessibleSegmentIterable<AttributeV
       using CompressedVectorIterator = decltype(vector.cbegin());
       auto pin_guard = SharedReadPinGuard{vector};
 
-      auto begin = Iterator<CompressedVectorIterator>{_null_value_id, vector.cbegin(), ChunkOffset{0u}};
+      auto begin = Iterator<CompressedVectorIterator>{_null_value_id, vector.cbegin(), ChunkOffset{0}};
       auto end = Iterator<CompressedVectorIterator>{_null_value_id, vector.cend(),
                                                     static_cast<ChunkOffset>(_attribute_vector.size())};
       functor(begin, end);

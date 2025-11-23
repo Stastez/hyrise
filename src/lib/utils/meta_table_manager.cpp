@@ -1,5 +1,15 @@
 #include "meta_table_manager.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <vector>
+
+#include "all_type_variant.hpp"
+#include "utils/assert.hpp"
+#include "utils/meta_tables/abstract_meta_table.hpp"
 #include "utils/meta_tables/meta_buffer_manager_metrics_table.hpp"
 #include "utils/meta_tables/meta_chunk_sort_orders_table.hpp"
 #include "utils/meta_tables/meta_chunks_table.hpp"
@@ -13,6 +23,7 @@
 #include "utils/meta_tables/meta_system_information_table.hpp"
 #include "utils/meta_tables/meta_system_utilization_table.hpp"
 #include "utils/meta_tables/meta_tables_table.hpp"
+#include "utils/performance_warning.hpp"
 
 namespace {
 
@@ -35,7 +46,6 @@ namespace hyrise {
 MetaTableManager::MetaTableManager() {
   const auto meta_tables =
       std::vector<std::shared_ptr<AbstractMetaTable>>{std::make_shared<MetaTablesTable>(),
-                                                      std::make_shared<MetaBufferManagerMetricsTable>(),
                                                       std::make_shared<MetaColumnsTable>(),
                                                       std::make_shared<MetaChunksTable>(),
                                                       std::make_shared<MetaChunkSortOrdersTable>(),
@@ -53,7 +63,7 @@ MetaTableManager::MetaTableManager() {
     _meta_tables[table->name()] = table;
     _table_names.emplace_back(table->name());
   }
-  std::sort(_table_names.begin(), _table_names.end());
+  std::ranges::sort(_table_names);
 }
 
 bool MetaTableManager::is_meta_table_name(const std::string& name) {
@@ -68,7 +78,7 @@ const std::vector<std::string>& MetaTableManager::table_names() const {
 void MetaTableManager::add_table(const std::shared_ptr<AbstractMetaTable>& table) {
   _meta_tables[table->name()] = table;
   _table_names.push_back(table->name());
-  std::sort(_table_names.begin(), _table_names.end());
+  std::ranges::sort(_table_names);
 }
 
 bool MetaTableManager::has_table(const std::string& table_name) const {

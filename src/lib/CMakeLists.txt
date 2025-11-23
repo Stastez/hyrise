@@ -2,7 +2,6 @@
 # Include this here because we need the GENERATED property on version.hpp and in CMake that property has directory
 # scope
 include(${PROJECT_SOURCE_DIR}/cmake/git_watcher.cmake)
-
 # Sources and libraries shared among the different builds of the lib
 set(
     SOURCES
@@ -118,6 +117,8 @@ set(
     logical_query_plan/create_view_node.hpp
     logical_query_plan/data_dependencies/functional_dependency.cpp
     logical_query_plan/data_dependencies/functional_dependency.hpp
+    logical_query_plan/data_dependencies/order_dependency.cpp
+    logical_query_plan/data_dependencies/order_dependency.hpp
     logical_query_plan/data_dependencies/unique_column_combination.cpp
     logical_query_plan/data_dependencies/unique_column_combination.hpp
     logical_query_plan/delete_node.cpp
@@ -172,7 +173,8 @@ set(
     lossless_cast.cpp
     lossless_cast.hpp
     lossy_cast.hpp
-    memory/boost_default_memory_resource.cpp
+    memory/default_memory_resource.cpp
+    memory/default_memory_resource.hpp
     memory/zero_allocator.hpp
     null_value.hpp
     operators/abstract_aggregate_operator.cpp
@@ -298,6 +300,7 @@ set(
     optimizer/join_ordering/join_graph_edge.hpp
     optimizer/optimizer.cpp
     optimizer/optimizer.hpp
+    optimizer/optimization_context.hpp
     optimizer/strategy/abstract_rule.cpp
     optimizer/strategy/abstract_rule.hpp
     optimizer/strategy/between_composition_rule.cpp
@@ -397,13 +400,10 @@ set(
     sql/sql_plan_cache.hpp
     sql/sql_translator.cpp
     sql/sql_translator.hpp
-    statistics/abstract_cardinality_estimator.cpp
-    statistics/abstract_cardinality_estimator.hpp
     statistics/attribute_statistics.cpp
     statistics/attribute_statistics.hpp
     statistics/base_attribute_statistics.cpp
     statistics/base_attribute_statistics.hpp
-    statistics/cardinality_estimation_cache.hpp
     statistics/cardinality_estimator.cpp
     statistics/cardinality_estimator.hpp
     statistics/generate_pruning_statistics.cpp
@@ -430,9 +430,10 @@ set(
     statistics/statistics_objects/null_value_ratio_statistics.hpp
     statistics/statistics_objects/range_filter.cpp
     statistics/statistics_objects/range_filter.hpp
+    statistics/statistics_objects/scaled_histogram.cpp
+    statistics/statistics_objects/scaled_histogram.hpp
     statistics/table_statistics.cpp
     statistics/table_statistics.hpp
-    storage/abstract_encoded_segment.cpp
     storage/abstract_encoded_segment.hpp
     storage/abstract_segment.cpp
     storage/abstract_segment.hpp
@@ -440,12 +441,17 @@ set(
     storage/base_segment_accessor.hpp
     storage/base_segment_encoder.hpp
     storage/base_value_segment.hpp
+    storage/buffer/frame.cpp
+    storage/buffer/frame.hpp
+    storage/buffer/page_id.hpp
     storage/chunk.cpp
     storage/chunk.hpp
     storage/chunk_encoder.cpp
     storage/chunk_encoder.hpp
     storage/constraints/abstract_table_constraint.cpp
     storage/constraints/abstract_table_constraint.hpp
+    storage/constraints/constraint_utils.cpp
+    storage/constraints/constraint_utils.hpp
     storage/constraints/foreign_key_constraint.cpp
     storage/constraints/foreign_key_constraint.hpp
     storage/constraints/table_key_constraint.cpp
@@ -502,10 +508,6 @@ set(
     storage/index/adaptive_radix_tree/adaptive_radix_tree_index.hpp
     storage/index/adaptive_radix_tree/adaptive_radix_tree_nodes.cpp
     storage/index/adaptive_radix_tree/adaptive_radix_tree_nodes.hpp
-    storage/index/b_tree/b_tree_index.cpp
-    storage/index/b_tree/b_tree_index.hpp
-    storage/index/b_tree/b_tree_index_impl.cpp
-    storage/index/b_tree/b_tree_index_impl.hpp
     storage/index/group_key/composite_group_key_index.cpp
     storage/index/group_key/composite_group_key_index.hpp
     storage/index/group_key/group_key_index.cpp
@@ -606,7 +608,6 @@ set(
     tasks/chunk_compression_task.cpp
     tasks/chunk_compression_task.hpp
     type_comparison.hpp
-    noncopyable.hpp
     types.cpp
     types.hpp
     uid_allocator.hpp
@@ -626,8 +627,6 @@ set(
     utils/format_duration.cpp
     utils/format_duration.hpp
     utils/invalid_input_exception.hpp
-    utils/list_directory.cpp
-    utils/list_directory.hpp
     utils/load_table.cpp
     utils/load_table.hpp
     utils/log_manager.cpp
@@ -635,6 +634,7 @@ set(
     utils/lossless_predicate_cast.cpp
     utils/lossless_predicate_cast.hpp
     utils/make_bimap.hpp
+    utils/map_prunable_subquery_predicates.hpp
     utils/meta_table_manager.cpp
     utils/meta_table_manager.hpp
     utils/meta_tables/abstract_meta_table.cpp
@@ -713,23 +713,21 @@ set(
     uninitialized_vector
     libzstd_static
     ${CMAKE_DL_LIBS}
-
     # Additional libraries added with target_link_libraries_system below
 )
 
-if(NOT APPLE)
+if (NOT APPLE)
     set(LIBRARIES ${LIBRARIES} atomic pthread)
 endif()
 
-if(${ENABLE_NUMA_SUPPORT})
+if (${ENABLE_NUMA_SUPPORT})
     set(LIBRARIES ${LIBRARIES} ${NUMA_LIBRARY})
 endif()
 
 set(ERASE_SEGMENT_TYPES "" CACHE STRING "Erase iterators and accessors for these types (e.g., RunLength,FrameOfReference). Good for compile time, bad for run time (if these types end up being used)")
 string(REPLACE "," ";" ERASE_SEGMENT_TYPES_LIST "${ERASE_SEGMENT_TYPES}")
 string(TOUPPER "${ERASE_SEGMENT_TYPES_LIST}" ERASE_SEGMENT_TYPES_UPPER)
-
-if(NOT "${ERASE_SEGMENT_TYPES_UPPER}" STREQUAL "")
+if (NOT "${ERASE_SEGMENT_TYPES_UPPER}" STREQUAL "")
     foreach(ERASE_SEGMENT_TYPE ${ERASE_SEGMENT_TYPES_UPPER})
         message(STATUS "Erasing iterators and accessors for: ${ERASE_SEGMENT_TYPE}")
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHYRISE_ERASE_${ERASE_SEGMENT_TYPE}")
@@ -737,21 +735,13 @@ if(NOT "${ERASE_SEGMENT_TYPES_UPPER}" STREQUAL "")
 endif()
 
 # hyrise_impl should not be directly used, as linking to it regularly excludes unused symbols. See hyrise below.
-if(NOT ENABLE_COVERAGE AND NOT(APPLE AND(ENABLE_ADDR_UB_SANITIZATION OR ENABLE_THREAD_SANITIZATION)))
+if(NOT ENABLE_COVERAGE AND NOT (APPLE AND (ENABLE_ADDR_UB_LEAK_SANITIZATION OR ENABLE_THREAD_SANITIZATION)))
     add_library(hyrise_impl SHARED ${SOURCES})
 else()
-    # Use a static build for coverage information - otherwise .cpp files are missing from the report
-    # Also, the sanitizer builds on Mac require static linkage
+    # Use a static build for coverage information - otherwise .cpp files are missing from the report.
+    # Also, the sanitizer builds on Mac require static linkage.
     add_library(hyrise_impl STATIC ${SOURCES})
 endif()
-
-# Work around an stdlibc++ bug, see list_directory.hpp for details
-set_source_files_properties(
-    utils/list_directory.cpp
-    PROPERTIES
-    COMPILE_FLAGS -O0
-    SKIP_PRECOMPILE_HEADERS TRUE
-)
 
 # -rdynamic tells the linker to export the library's symbols so that plugins can use them.
 target_link_libraries(hyrise_impl PUBLIC ${LIBRARIES} -rdynamic)
@@ -772,17 +762,14 @@ target_link_libraries_system(
 
     ${BOOST_LIBS}
     concurrentqueue
-    cpp-btree
     cxxopts
-    flat-hash-map
     nlohmann_json::nlohmann_json
-    robin_map
     sparse_map
     SQLite::SQLite3
     tbb
 )
 
-if(NUMA_FOUND)
+if (NUMA_FOUND)
     target_link_libraries(hyrise_impl PUBLIC numa)
 endif()
 
@@ -791,7 +778,7 @@ target_include_directories(hyrise_impl PUBLIC ${CMAKE_BINARY_DIR})
 # Precompile the most expensive headers. Only add headers here if you know what you are doing, as this has the potential
 # of negatively affecting the build time.
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-    target_compile_options(hyrise_impl PUBLIC -Xclang -fno-pch-timestamp)
+target_compile_options(hyrise_impl PUBLIC -Xclang -fno-pch-timestamp)
 endif()
 target_precompile_headers(hyrise_impl PRIVATE
   all_parameter_variant.hpp
@@ -805,16 +792,16 @@ target_compile_options(hyrise_impl PRIVATE -fPIC)
 
 # Dependency hyrise --> git_watcher needs to be added manually, apparently. Otherwise version.hpp, for reasons unknown
 # isn't updated when HEAD changes
+
 add_dependencies(hyrise_impl AlwaysCheckGit)
 
 # This is a wrapper around hyrise_impl that forces the compiler to emit all symbols
 add_library(hyrise INTERFACE)
-
 # Forward all include directories from hyrise_impl
 target_include_directories(hyrise INTERFACE $<TARGET_PROPERTY:hyrise_impl,INCLUDE_DIRECTORIES>)
 
 # -force_load/--whole-archive are necessary to include all symbols so that dynamically loaded plugins can use them
-if(APPLE)
+if (APPLE)
     set_property(TARGET hyrise PROPERTY INTERFACE_LINK_LIBRARIES -force_load $<TARGET_FILE:hyrise_impl>)
 else()
     set_property(TARGET hyrise PROPERTY INTERFACE_LINK_LIBRARIES -Wl,--whole-archive,$<TARGET_FILE:hyrise_impl>,--no-whole-archive)
@@ -826,7 +813,7 @@ target_link_libraries(hyrise INTERFACE hyrise_impl)
 # For convenience, to be able to launch, e.g., hyriseTest, directly from the build directory,
 # add a link to the resources/ directory at the root of the build directory).
 add_custom_target(resourceLink
-    COMMAND ln -fs ${CMAKE_BINARY_DIR}/../resources ${CMAKE_BINARY_DIR}/
+        COMMAND ln -fs ${CMAKE_BINARY_DIR}/../resources ${CMAKE_BINARY_DIR}/
 )
 
 add_dependencies(hyrise resourceLink)

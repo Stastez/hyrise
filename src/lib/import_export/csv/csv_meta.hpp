@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-#include "nlohmann/json.hpp"
+#include "nlohmann/json_fwd.hpp"
 
 #include "storage/chunk.hpp"
 
@@ -73,8 +73,10 @@ void from_json(const nlohmann::json& json, CsvMeta& meta);
 void to_json(nlohmann::json& json, const CsvMeta& meta);
 
 /*
- * Equals-operator for convenience and use in tests.
+ * Equals operators for convenience and use in tests.
  */
+bool operator==(const ColumnMeta& left, const ColumnMeta& right);
 bool operator==(const CsvMeta& left, const CsvMeta& right);
+bool operator==(const ParseConfig& left, const ParseConfig& right);
 
 }  // namespace hyrise

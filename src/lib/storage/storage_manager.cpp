@@ -1,18 +1,24 @@
 #include "storage_manager.hpp"
 
+#include <algorithm>
 #include <memory>
+#include <ostream>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
 #include "hyrise.hpp"
 #include "import_export/file_type.hpp"
-#include "logical_query_plan/abstract_lqp_node.hpp"
 #include "operators/export.hpp"
 #include "operators/table_wrapper.hpp"
+#include "scheduler/abstract_task.hpp"
 #include "scheduler/job_task.hpp"
 #include "statistics/generate_pruning_statistics.hpp"
 #include "statistics/table_statistics.hpp"
+#include "storage/lqp_view.hpp"
+#include "storage/prepared_plan.hpp"
+#include "types.hpp"
 #include "utils/assert.hpp"
 #include "utils/meta_table_manager.hpp"
 
@@ -22,9 +28,9 @@ void StorageManager::add_table(const std::string& name, std::shared_ptr<Table> t
   const auto table_iter = _tables.find(name);
   const auto view_iter = _views.find(name);
   Assert(table_iter == _tables.end() || !table_iter->second,
-         "Cannot add table " + name + " - a table with the same name already exists");
+         "Cannot add table " + name + " - a table with the same name already exists.");
   Assert(view_iter == _views.end() || !view_iter->second,
-         "Cannot add table " + name + " - a view with the same name already exists");
+         "Cannot add table " + name + " - a view with the same name already exists.");
 
   const auto chunk_count = table->chunk_count();
   for (auto chunk_id = ChunkID{0}; chunk_id < chunk_count; ++chunk_id) {
@@ -35,8 +41,9 @@ void StorageManager::add_table(const std::string& name, std::shared_ptr<Table> t
   }
 
   // Create table statistics and chunk pruning statistics for added table.
-
-  table->set_table_statistics(TableStatistics::from_table(*table));
+  if (!table->table_statistics()) {
+    table->set_table_statistics(TableStatistics::from_table(*table));
+  }
   generate_chunk_pruning_statistics(table);
 
   _tables[name] = std::move(table);
@@ -78,7 +85,7 @@ std::vector<std::string> StorageManager::table_names() const {
     table_names.emplace_back(table_item.first);
   }
 
-  std::sort(table_names.begin(), table_names.end());
+  std::ranges::sort(table_names);
   return table_names;
 }
 
@@ -234,30 +241,27 @@ void StorageManager::export_all_tables_as_csv(const std::string& path) {
 }
 
 std::ostream& operator<<(std::ostream& stream, const StorageManager& storage_manager) {
-  stream << "==================" << std::endl;
-  stream << "===== Tables =====" << std::endl << std::endl;
+  stream << "==================\n";
+  stream << "===== Tables =====\n\n";
 
   for (auto const& table : storage_manager.tables()) {
     stream << "==== table >> " << table.first << " <<";
     stream << " (" << table.second->column_count() << " columns, " << table.second->row_count() << " rows in "
-           << table.second->chunk_count() << " chunks)";
-    stream << std::endl;
+           << table.second->chunk_count() << " chunks)\n";
   }
 
-  stream << "==================" << std::endl;
-  stream << "===== Views ======" << std::endl << std::endl;
+  stream << "==================\n";
+  stream << "===== Views ======\n\n";
 
   for (auto const& view : storage_manager.views()) {
-    stream << "==== view >> " << view.first << " <<";
-    stream << std::endl;
+    stream << "==== view >> " << view.first << " <<\n";
   }
 
-  stream << "==================" << std::endl;
-  stream << "= PreparedPlans ==" << std::endl << std::endl;
+  stream << "==================\n";
+  stream << "= PreparedPlans ==\n\n";
 
   for (auto const& prepared_plan : storage_manager.prepared_plans()) {
-    stream << "==== prepared plan >> " << prepared_plan.first << " <<";
-    stream << std::endl;
+    stream << "==== prepared plan >> " << prepared_plan.first << " <<\n";
   }
 
   return stream;

@@ -3,6 +3,8 @@
 #include <utility>
 #include <vector>
 
+#include <boost/container/vector.hpp>
+
 #include "abstract_pos_list.hpp"
 #include "types.hpp"
 #include "utils/assert.hpp"

@@ -121,7 +121,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}) # Put binaries into root
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib) # Put libraries into their own dir
 
 # C(++) Flags
-set(FLAGS_ALL "-fopenmp-simd -fno-omit-frame-pointe")  # enables loop vectorization hints, but does not include the OpenMP runtime
+set(FLAGS_ALL "-fopenmp-simd -fno-omit-frame-pointer")  # enables loop vectorization hints, but does not include the OpenMP runtime
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${FLAGS_ALL}")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${FLAGS_ALL}")
 
@@ -211,7 +211,7 @@ set(BOOST_MIN_VERSION "1.81.0")
 find_package(Boost ${BOOST_MIN_VERSION} REQUIRED COMPONENTS container thread date_time NO_MODULE)
 
 add_definitions(-DBOOST_THREAD_VERSION=5)
-set(BOOST_LIBS Boost::container Boost:thread Boost::date_time)
+set(BOOST_LIBS Boost::container Boost::thread Boost::date_time)
 
 # If we are building Hyrise for the CI server, we want to make sure that all optional features are available and can be tested
 if(CI_BUILD)

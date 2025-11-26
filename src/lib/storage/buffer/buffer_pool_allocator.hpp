@@ -1,9 +1,10 @@
 #pragma once
 
+#include <boost/container/pmr/global_resource.hpp>
 #include <boost/container/pmr/memory_resource.hpp>
 #include <boost/move/utility.hpp>
-#include "storage/buffer/buffer_pool_allocator_observer.hpp"
 
+#include "storage/buffer/buffer_pool_allocator_observer.hpp"
 #include "utils/assert.hpp"
 
 namespace hyrise {

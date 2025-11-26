@@ -11,6 +11,8 @@
 #include <utility>
 #include <vector>
 
+#include <boost/container/string.hpp>
+
 #include "strong_typedef.hpp"
 #include "storage/buffer/buffer_pool_allocator.hpp"
 

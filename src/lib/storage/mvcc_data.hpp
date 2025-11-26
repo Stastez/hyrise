@@ -4,6 +4,8 @@
 #include <limits>
 #include <shared_mutex>
 
+#include <boost/container/vector.hpp>
+
 #include "types.hpp"
 #include "utils/copyable_atomic.hpp"
 

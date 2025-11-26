@@ -4,7 +4,7 @@
 #include <bit>
 #include <iostream>
 #include <limits>
-#include <magic_enum.hpp>
+#include <magic_enum/magic_enum.hpp>
 #include "boost/integer/static_log2.hpp"
 #include "frame.hpp"
 #include "metrics.hpp"

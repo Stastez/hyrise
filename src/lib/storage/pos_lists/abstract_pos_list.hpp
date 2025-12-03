@@ -79,6 +79,10 @@ class AbstractPosList : private Noncopyable {
   virtual size_t memory_usage(const MemoryUsageCalculationMode) const = 0;
 
   friend bool operator==(const AbstractPosList& lhs, const AbstractPosList& rhs);
+  bool operator==(const AbstractPosList& other) const {
+    PerformanceWarning("Using slow PosList comparison.");
+    return std::equal(cbegin(), cend(), other.cbegin(), other.cend());
+  }
 };
 
 inline bool operator==(const AbstractPosList& lhs, const AbstractPosList& rhs) {

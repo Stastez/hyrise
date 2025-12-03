@@ -15,7 +15,7 @@
 namespace hyrise {
 
 MvccData::MvccData(const size_t size, CommitID begin_commit_id)
-    : allocator(boost::container::pmr::new_delete_resource()),
+    : allocator(std::pmr::new_delete_resource()),
       _begin_cids(allocator),
       _end_cids(allocator),
       _tids(allocator) {

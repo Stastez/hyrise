@@ -4,7 +4,7 @@
 #include <utils/singleton.hpp>
 
 namespace hyrise {
-class JemallocMemoryResource : public boost::container::pmr::memory_resource, public Singleton<JemallocMemoryResource> {
+class JemallocMemoryResource : public std::pmr::memory_resource, public Singleton<JemallocMemoryResource> {
   friend Singleton;
 
  public:
@@ -13,7 +13,7 @@ class JemallocMemoryResource : public boost::container::pmr::memory_resource, pu
 
   void* do_allocate(std::size_t bytes, std::size_t alignment);
   void do_deallocate(void* pointer, std::size_t bytes, std::size_t alignment);
-  bool do_is_equal(const boost::container::pmr::memory_resource& other) const noexcept;
+  bool do_is_equal(const std::pmr::memory_resource& other) const noexcept;
 
   void reset();
 
@@ -23,7 +23,7 @@ class JemallocMemoryResource : public boost::container::pmr::memory_resource, pu
   void create_arena();
 };
 
-static boost::container::pmr::memory_resource* get_default_jemalloc_memory_resource() {
+static std::pmr::memory_resource* get_default_jemalloc_memory_resource() {
   return &JemallocMemoryResource::get();
 }
 }  // namespace hyrise

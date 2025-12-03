@@ -6,7 +6,7 @@
 #include <boost/preprocessor/stringize.hpp>
 
 #include "invalid_input_exception.hpp"
-#include "utils/string_utils.hpp"  // NOLINT(misc-include-cleaner): used in macro.
+// #include "utils/string_utils.hpp"  // NOLINT(misc-include-cleaner): used in macro.
 
 /**
  * This file provides better assertions than the std cassert/assert.h - DebugAssert(condition, msg) and Fail(msg) can be
@@ -38,6 +38,8 @@
  */
 
 namespace hyrise {
+
+std::string trim_source_file_path(const std::string& path);
 
 namespace detail {
 

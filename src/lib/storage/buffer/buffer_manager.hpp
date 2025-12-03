@@ -116,7 +116,7 @@ class BufferManager : public boost::container::pmr::memory_resource, public Nonc
 
   std::shared_ptr<BufferManagerMetrics> _metrics;
 
-  std::array<std::shared_ptr<VolatileRegion>, NUM_PAGE_SIZE_TYPES> _volatile_regions;
+  std::array<std::shared_ptr<VolatileRegion>, PAGE_SIZE_TYPES_COUNT> _volatile_regions;
 
   std::shared_ptr<SSDRegion> _ssd_region;
 

@@ -31,7 +31,7 @@ static thread_local LinearBufferResourceState linear_buffer_resource_state = Lin
  * 
  * - Each thread gets its own instance of a LinearBufferResource through Tread-Local Storage with LinearBufferResource *get_monotonic_memory_resource()
 */
-class LinearBufferResource : public boost::container::pmr::memory_resource, public Singleton<LinearBufferResource> {
+class LinearBufferResource : public std::pmr::memory_resource, public Singleton<LinearBufferResource> {
  public:
   // First page size to be allocated for small allocations is 8 KiB
   static constexpr PageSizeType PAGE_SIZE_TYPE = PageSizeType::KiB256;
@@ -44,7 +44,7 @@ class LinearBufferResource : public boost::container::pmr::memory_resource, publ
 
   void* do_allocate(std::size_t, std::size_t) override;
   void do_deallocate(void*, std::size_t, std::size_t) override;
-  bool do_is_equal(const boost::container::pmr::memory_resource& other) const noexcept override;
+  bool do_is_equal(const std::pmr::memory_resource& other) const noexcept override;
 
   /**
     * Check how many bytes are left in the current page including the alignment.

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <memory_resource>
+
 #include <boost/container/pmr/global_resource.hpp>
 #include <boost/container/pmr/memory_resource.hpp>
 #include <boost/move/utility.hpp>
@@ -19,11 +21,11 @@ class BufferPoolAllocator {
  public:
   using value_type = T;
 
-  BufferPoolAllocator() : _memory_resource(boost::container::pmr::new_delete_resource()) {
+  BufferPoolAllocator() : _memory_resource(std::pmr::new_delete_resource()) {
     DebugAssert(_memory_resource != nullptr, "_memory_resource is empty");
   }
 
-  BufferPoolAllocator(boost::container::pmr::memory_resource* memory_resource,
+  BufferPoolAllocator(std::pmr::memory_resource* memory_resource,
                       std::shared_ptr<BufferPoolAllocatorObserver> observer = nullptr)
       : _memory_resource(memory_resource), _observer(observer) {
     DebugAssert(_memory_resource != nullptr, "_memory_resource is empty");
@@ -75,7 +77,7 @@ class BufferPoolAllocator {
     _memory_resource->deallocate(ptr, sizeof(value_type) * n, alignof(T));
   }
 
-  boost::container::pmr::memory_resource* memory_resource() const noexcept {
+  std::pmr::memory_resource* memory_resource() const noexcept {
     return _memory_resource;
   }
 
@@ -97,7 +99,7 @@ class BufferPoolAllocator {
   }
 
  private:
-  boost::container::pmr::memory_resource* _memory_resource;
+  std::pmr::memory_resource* _memory_resource;
   std::weak_ptr<BufferPoolAllocatorObserver> _observer;
 };
 

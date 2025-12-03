@@ -14,7 +14,7 @@ namespace hyrise {
 
 template <typename T>
 GenericHistogramBuilder<T>::GenericHistogramBuilder(const size_t reserve_bin_count, const HistogramDomain<T>& domain)
-    : _allocator(boost::container::pmr::new_delete_resource()),
+    : _allocator(std::pmr::new_delete_resource()),
       _domain(domain),
       _bin_minima(_allocator),
       _bin_maxima(_allocator),

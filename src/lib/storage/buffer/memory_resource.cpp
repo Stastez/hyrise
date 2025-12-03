@@ -89,7 +89,7 @@ void LinearBufferResource::do_deallocate(void* ptr, std::size_t, std::size_t) {
   // }
 }
 
-bool LinearBufferResource::do_is_equal(const boost::container::pmr::memory_resource& other) const noexcept {
+bool LinearBufferResource::do_is_equal(const std::pmr::memory_resource& other) const noexcept {
   return this == &other;
 }
 

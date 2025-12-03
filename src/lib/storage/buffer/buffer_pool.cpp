@@ -6,7 +6,7 @@
 namespace hyrise {
 //TODO: properly check if disabled or not
 BufferPool::BufferPool(const bool enabled, const size_t pool_size, const bool enable_eviction_purge_worker,
-                       std::array<std::shared_ptr<VolatileRegion>, NUM_PAGE_SIZE_TYPES> volatile_regions,
+                       std::array<std::shared_ptr<VolatileRegion>, PAGE_SIZE_TYPES_COUNT> volatile_regions,
                        MigrationPolicy migration_policy, std::shared_ptr<SSDRegion> ssd_region,
                        std::shared_ptr<BufferPool> target_buffer_pool, const NodeID numa_node,
                        std::shared_ptr<BufferPoolMetrics> metrics)
@@ -175,7 +175,7 @@ size_t BufferPool::free_bytes_node() const {
     return 0;
   }
   long long free_bytes;
-  numa_node_size(node_id, &free_bytes);
+  numa_node_size64(node_id, &free_bytes);
   return free_bytes;
 #else
   return 0;

@@ -56,7 +56,7 @@ class SegmentPosition final : public AbstractSegmentPosition<T> {
 
   template <typename U = T, typename = std::enable_if_t<std::is_same_v<U, pmr_string>>>
   SegmentPosition(const U& value, const bool null_value, const ChunkOffset& chunk_offset)
-      : _value{value, boost::container::pmr::new_delete_resource()},
+      : _value{value, std::pmr::new_delete_resource()},
         _null_value{null_value},
         _chunk_offset{chunk_offset} {}
 
@@ -95,7 +95,7 @@ class NonNullSegmentPosition final : public AbstractSegmentPosition<T> {
 
   template <typename U = T, typename = std::enable_if_t<std::is_same_v<U, pmr_string>>>
   NonNullSegmentPosition(const U& value, const ChunkOffset& chunk_offset)
-      : _value{value, boost::container::pmr::new_delete_resource()}, _chunk_offset{chunk_offset} {}
+      : _value{value, std::pmr::new_delete_resource()}, _chunk_offset{chunk_offset} {}
 
   const T& value() const override {
     return _value;

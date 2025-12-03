@@ -424,7 +424,7 @@ std::shared_ptr<ExpressionResult<ExpressionEvaluator::Bool>> ExpressionEvaluator
     if (list_expression.elements().empty()) {
       // `x IN ()` is false/`x NOT IN ()` is true, even if this is not supported by SQL.
       return std::make_shared<ExpressionResult<ExpressionEvaluator::Bool>>(
-          pmr_vector<ExpressionEvaluator::Bool>{static_cast<ExpressionEvaluator::Bool>(in_expression.is_negated())}, allocator);
+          pmr_vector<ExpressionEvaluator::Bool>(static_cast<ExpressionEvaluator::Bool>(in_expression.is_negated()), allocator));
     }
 
     if (left_expression.data_type() == DataType::Null) {
@@ -463,7 +463,7 @@ std::shared_ptr<ExpressionResult<ExpressionEvaluator::Bool>> ExpressionEvaluator
     if (type_compatible_elements.empty()) {
       // `x IN ()` is false/`x NOT IN ()` is true, even if this is not supported by SQL.
       return std::make_shared<ExpressionResult<ExpressionEvaluator::Bool>>(
-          pmr_vector<ExpressionEvaluator::Bool>{static_cast<ExpressionEvaluator::Bool>(in_expression.is_negated())}, allocator);
+          pmr_vector<ExpressionEvaluator::Bool>(static_cast<ExpressionEvaluator::Bool>(in_expression.is_negated()), allocator));
     }
 
     // If all elements of the list are simple values (e.g., `IN (1, 2, 3)`), iterate over the column and directly

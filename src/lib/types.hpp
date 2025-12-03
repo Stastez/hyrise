@@ -13,8 +13,8 @@
 
 #include <boost/container/string.hpp>
 
-#include "strong_typedef.hpp"
 #include "storage/buffer/buffer_pool_allocator.hpp"
+#include "strong_typedef.hpp"
 
 /**
  * We use STRONG_TYPEDEF to avoid things like adding chunk ids and value ids. Because implicit constructors are

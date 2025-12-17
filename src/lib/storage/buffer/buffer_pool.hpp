@@ -2,7 +2,7 @@
 
 #include "frame.hpp"
 #include "storage/buffer/migration_policy.hpp"
-#include "storage/buffer/page_id.hpp"
+#include "storage/buffer/helper.hpp"
 #include "types.hpp"
 #include "utils/pausable_loop_thread.hpp"
 
@@ -14,7 +14,7 @@ struct BufferPoolMetrics;
 
 struct BufferPool {
   BufferPool(const bool enabled, const size_t pool_size, const bool enable_eviction_purge_worker,
-             std::array<std::shared_ptr<VolatileRegion>, PAGE_SIZE_TYPES_COUNT> volatile_regions,
+             std::array<std::shared_ptr<VolatileRegion>, NUM_PAGE_SIZE_TYPES> volatile_regions,
              MigrationPolicy migration_policy, std::shared_ptr<SSDRegion> ssd_region,
              std::shared_ptr<BufferPool> target_buffer_pool, const NodeID numa_node, std::shared_ptr<BufferPoolMetrics> metrics);
 
@@ -56,7 +56,7 @@ struct BufferPool {
 
   const MigrationPolicy migration_policy;
 
-  std::array<std::shared_ptr<VolatileRegion>, PAGE_SIZE_TYPES_COUNT> volatile_regions;
+  std::array<std::shared_ptr<VolatileRegion>, NUM_PAGE_SIZE_TYPES> volatile_regions;
 
   const NodeID node_id;
 

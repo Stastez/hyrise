@@ -348,7 +348,7 @@ PageID BufferManager::find_page(const void* ptr) const {
       bytes_for_size_type(MIN_PAGE_SIZE_TYPE) * (1 << region_idx);  // TODO: this might break if not exponential sizes
   const auto region_offset = offset % DEFAULT_RESERVED_VIRTUAL_MEMORY_PER_REGION;
   const auto page_idx = region_offset / page_size;
-  const auto valid = region_idx < PAGE_SIZE_TYPES_COUNT && region_idx >= 0;
+  const auto valid = region_idx < NUM_PAGE_SIZE_TYPES && region_idx >= 0;
   const auto size_type = valid ? magic_enum::enum_value<PageSizeType>(region_idx) : MIN_PAGE_SIZE_TYPE;
   return PageID{size_type, static_cast<PageID::PageIDType>(page_idx), valid};
 }

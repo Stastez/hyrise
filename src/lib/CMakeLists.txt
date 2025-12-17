@@ -443,8 +443,7 @@ set(
     storage/base_value_segment.hpp
     storage/buffer/frame.cpp
     storage/buffer/frame.hpp
-    storage/buffer/page_id.hpp
-    storage/chunk.cpp
+		storage/chunk.cpp
     storage/chunk.hpp
     storage/chunk_encoder.cpp
     storage/chunk_encoder.hpp

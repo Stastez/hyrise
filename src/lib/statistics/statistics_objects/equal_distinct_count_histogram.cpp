@@ -79,8 +79,8 @@ std::vector<std::pair<T, HistogramCountType>> value_distribution_from_column(con
 namespace hyrise {
 
 template <typename T>
-EqualDistinctCountHistogram<T>::EqualDistinctCountHistogram(pmr_vector<T>&& bin_minima, pmr_vector<T>&& bin_maxima,
-                                                            pmr_vector<HistogramCountType>&& bin_heights,
+EqualDistinctCountHistogram<T>::EqualDistinctCountHistogram(std::vector<T>&& bin_minima, std::vector<T>&& bin_maxima,
+                                                            std::vector<HistogramCountType>&& bin_heights,
                                                             const HistogramCountType distinct_count_per_bin,
                                                             const BinID bin_count_with_extra_value,
                                                             const HistogramDomain<T>& domain)
@@ -124,9 +124,9 @@ std::shared_ptr<EqualDistinctCountHistogram<T>> EqualDistinctCountHistogram<T>::
   auto allocator = PolymorphicAllocator<T>{};
   auto alloc_pin_guard = AllocatorPinGuard{allocator};
 
-  pmr_vector<T> bin_minima(bin_count, allocator);
-  pmr_vector<T> bin_maxima(bin_count, allocator);
-  pmr_vector<HistogramCountType> bin_heights(bin_count, allocator);
+  std::vector<T> bin_minima(bin_count, allocator);
+  std::vector<T> bin_maxima(bin_count, allocator);
+  std::vector<HistogramCountType> bin_heights(bin_count, allocator);
 
   // `min_value_idx` and `max_value_idx` are indices into the sorted vector `value_distribution`
   // describing which range of distinct values goes into a bin

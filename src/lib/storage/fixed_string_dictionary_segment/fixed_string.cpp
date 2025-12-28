@@ -140,4 +140,8 @@ bool operator==(const char* lhs, const FixedString& rhs) {
   return lhs == rhs.string_view();
 }
 
+bool operator==(const FixedString& lhs, const pmr_string& rhs) {
+  return lhs.string_view() == rhs;
+}
+
 }  // namespace hyrise

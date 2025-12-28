@@ -103,15 +103,15 @@ size_t SSDRegion::memory_consumption() const {
   return sizeof(*this);
 }
 
-std::array<SSDRegion::FileHandle, PAGE_SIZE_TYPES_COUNT> SSDRegion::open_file_handles_in_directory(
+std::array<SSDRegion::FileHandle, NUM_PAGE_SIZE_TYPES> SSDRegion::open_file_handles_in_directory(
     const std::filesystem::path& path) {
   DebugAssert(std::filesystem::is_directory(path), "SSDRegion path must be a directory");
-  auto array = std::array<SSDRegion::FileHandle, PAGE_SIZE_TYPES_COUNT>{};
+  auto array = std::array<SSDRegion::FileHandle, NUM_PAGE_SIZE_TYPES>{};
 
   const auto now = std::chrono::system_clock::now();
   const auto timestamp = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
 
-  for (auto i = size_t{0}; i < PAGE_SIZE_TYPES_COUNT; ++i) {
+  for (auto i = size_t{0}; i < NUM_PAGE_SIZE_TYPES; ++i) {
     const auto file_name =
         path / ("hyrise-buffer-pool-" + std::to_string(timestamp) + "-type-" + std::to_string(i) + ".bin");
     array[i] = {open_file_descriptor(file_name), file_name};
@@ -121,10 +121,10 @@ std::array<SSDRegion::FileHandle, PAGE_SIZE_TYPES_COUNT> SSDRegion::open_file_ha
   return array;
 }
 
-std::array<SSDRegion::FileHandle, PAGE_SIZE_TYPES_COUNT> SSDRegion::open_file_handles_block(
+std::array<SSDRegion::FileHandle, NUM_PAGE_SIZE_TYPES> SSDRegion::open_file_handles_block(
     const std::filesystem::path& path) {
   DebugAssert(std::filesystem::is_block_file(path), "SSDRegion path must be a directory");
-  auto array = std::array<SSDRegion::FileHandle, PAGE_SIZE_TYPES_COUNT>{};
+  auto array = std::array<SSDRegion::FileHandle, NUM_PAGE_SIZE_TYPES>{};
 
   const auto fd = open_file_descriptor(path);
 
@@ -140,8 +140,8 @@ std::array<SSDRegion::FileHandle, PAGE_SIZE_TYPES_COUNT> SSDRegion::open_file_ha
 #endif
 
   // Divide block device into equal chunks and align to page boundary
-  const auto bytes_per_size_type = ((block_size / PAGE_SIZE_TYPES_COUNT) / OS_PAGE_SIZE) * OS_PAGE_SIZE;
-  for (auto i = size_t{0}; i < PAGE_SIZE_TYPES_COUNT; ++i) {
+  const auto bytes_per_size_type = ((block_size / NUM_PAGE_SIZE_TYPES) / OS_PAGE_SIZE) * OS_PAGE_SIZE;
+  for (auto i = size_t{0}; i < NUM_PAGE_SIZE_TYPES; ++i) {
     const auto block_offset = i * bytes_per_size_type;
     array[i] = {fd, path, block_offset};
   }

@@ -34,13 +34,11 @@ class GenericHistogramBuilder {
   std::shared_ptr<GenericHistogram<T>> build();
 
  private:
-  PolymorphicAllocator<T> _allocator;
-
   HistogramDomain<T> _domain;
-  pmr_vector<T> _bin_minima;
-  pmr_vector<T> _bin_maxima;
-  pmr_vector<HistogramCountType> _bin_heights;
-  pmr_vector<HistogramCountType> _bin_distinct_counts;
+  std::vector<T> _bin_minima;
+  std::vector<T> _bin_maxima;
+  std::vector<HistogramCountType> _bin_heights;
+  std::vector<HistogramCountType> _bin_distinct_counts;
 };
 
 EXPLICITLY_DECLARE_DATA_TYPES(GenericHistogramBuilder);

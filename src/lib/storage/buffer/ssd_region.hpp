@@ -44,11 +44,11 @@ class SSDRegion : public Noncopyable {
   };
 
   Mode _mode;
-  std::array<FileHandle, PAGE_SIZE_TYPES_COUNT> _file_handles;
+  std::array<FileHandle, NUM_PAGE_SIZE_TYPES> _file_handles;
   std::shared_ptr<BufferManagerMetrics> _metrics;
 
-  std::array<FileHandle, PAGE_SIZE_TYPES_COUNT> open_file_handles_in_directory(const std::filesystem::path& path);
-  std::array<FileHandle, PAGE_SIZE_TYPES_COUNT> open_file_handles_block(const std::filesystem::path& path);
+  std::array<FileHandle, NUM_PAGE_SIZE_TYPES> open_file_handles_in_directory(const std::filesystem::path& path);
+  std::array<FileHandle, NUM_PAGE_SIZE_TYPES> open_file_handles_block(const std::filesystem::path& path);
 
   static int open_file_descriptor(const std::filesystem::path& file_name);
 };

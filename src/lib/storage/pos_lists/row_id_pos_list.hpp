@@ -116,6 +116,8 @@ class RowIDPosList final : public AbstractPosList, private pmr_vector<RowID> {
     return Vector::empty();
   }
 
+  friend bool operator==(const RowIDPosList& lhs, const RowIDPosList& rhs);
+
   // Modifiers
   using Vector::clear;
   using Vector::emplace;
@@ -132,5 +134,9 @@ class RowIDPosList final : public AbstractPosList, private pmr_vector<RowID> {
  private:
   bool _references_single_chunk = false;
 };
+
+inline bool operator==(const RowIDPosList& lhs, const RowIDPosList& rhs) {
+  return *static_cast<const AbstractPosList*>(&lhs) == *static_cast<const AbstractPosList*>(&rhs);
+}
 
 }  // namespace hyrise

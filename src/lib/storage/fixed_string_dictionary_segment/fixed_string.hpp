@@ -67,6 +67,7 @@ class FixedString {
   friend bool operator==(const std::string_view& lhs, const FixedString& rhs);
   friend bool operator==(const FixedString& lhs, const char* rhs);
   friend bool operator==(const char* lhs, const FixedString& rhs);
+  friend bool operator==(const FixedString& lhs, const pmr_string& rhs);
 
   // Prints FixedString as string
   friend std::ostream& operator<<(std::ostream& stream, const FixedString& obj);

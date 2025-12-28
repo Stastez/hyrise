@@ -234,7 +234,7 @@ TEST_F(FixedStringVectorTest, GetAllocator) {
   const auto alloc = PolymorphicAllocator<char>{};
   const auto strings = {"", ""};
   auto fs_vector = FixedStringVector(strings.begin(), strings.end(), 0, alloc);
-  EXPECT_EQ(alloc.resource(), fs_vector.get_allocator().resource());
+  EXPECT_EQ(alloc.memory_resource(), fs_vector.get_allocator().memory_resource());
 }
 
 }  // namespace hyrise

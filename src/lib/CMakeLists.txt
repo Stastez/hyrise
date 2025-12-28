@@ -443,7 +443,6 @@ set(
     storage/base_value_segment.hpp
     storage/buffer/frame.cpp
     storage/buffer/frame.hpp
-    storage/buffer/page_id.hpp
     storage/chunk.cpp
     storage/chunk.hpp
     storage/chunk_encoder.cpp
@@ -465,6 +464,8 @@ set(
     storage/buffer/buffer_manager.hpp
     storage/buffer/buffer_pool.cpp
     storage/buffer/buffer_pool.hpp
+    storage/buffer/helper.cpp
+    storage/buffer/helper.hpp
     storage/buffer/jemalloc_resource.cpp
     storage/buffer/jemalloc_resource.hpp
     storage/buffer/metrics.hpp
@@ -480,7 +481,7 @@ set(
     storage/buffer/migration_policy.hpp
     storage/buffer/ssd_region.cpp
     storage/buffer/ssd_region.hpp
-        storage/buffer/volatile_region.cpp
+    storage/buffer/volatile_region.cpp
     storage/buffer/volatile_region.hpp
     storage/dictionary_segment.cpp
     storage/dictionary_segment.hpp

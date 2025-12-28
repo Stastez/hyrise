@@ -1,14 +1,13 @@
 #pragma once
 
 #include "frame.hpp"
-#include "helper.hpp"
 #include "storage/buffer/migration_policy.hpp"
+#include "storage/buffer/helper.hpp"
 #include "types.hpp"
 #include "utils/pausable_loop_thread.hpp"
 
 namespace hyrise {
 
-struct EvictionItem;
 class SSDRegion;
 class VolatileRegion;
 struct BufferPoolMetrics;

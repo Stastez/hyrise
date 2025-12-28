@@ -131,6 +131,8 @@ class RowIDPosList final : public AbstractPosList, private pmr_vector<RowID> {
 
   size_t memory_usage(const MemoryUsageCalculationMode /*mode*/) const final;
 
+  friend bool operator==(const RowIDPosList& lhs, const RowIDPosList& rhs);
+
  private:
   bool _references_single_chunk = false;
 };
